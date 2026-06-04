@@ -295,7 +295,7 @@ def department_status_pivot(df: pd.DataFrame) -> pd.DataFrame:
 # AI INSIGHTS
 # ===========================================================================
 
-def generate_insights(df: pd.DataFrame, kpis: dict) -> list[dict]:
+def generate_insights(df: pd.DataFrame, kpis: dict) -> list:
     """
     Rule-based AI insights engine.
     Returns a list of insight dicts with keys:
@@ -308,11 +308,11 @@ def generate_insights(df: pd.DataFrame, kpis: dict) -> list[dict]:
     if df.empty or not kpis:
         return insights
 
-    ap = kpis.get("active_pct", 0)
-    rc = kpis.get("retired_count", 0)
-    mc = kpis.get("maint_count", 0)
-    cc = kpis.get("critical_count", 0)
-    total = kpis.get("total_assets", 1)
+    ap    = kpis.get("active_pct", 0)
+    rc    = kpis.get("retired_count", 0)
+    mc    = kpis.get("maint_count", 0)
+    cc    = kpis.get("critical_count", 0)
+    total = kpis.get("total_assets", 1) or 1
     yoy   = kpis.get("yoy_growth", 0)
 
     # --- Active rate ---
@@ -379,56 +379,75 @@ def generate_insights(df: pd.DataFrame, kpis: dict) -> list[dict]:
             detail=f"New asset procurement declined by {abs(yoy):.1f}% compared to last year. Review budget allocation.",
         ))
 
-    # --- Concentration risk ---
-    hw_col = COLUMNS["hw_status"]
-    loc_col = COLUMNS["location"]
-    if loc_col in df.columns:
-        top_loc_pct = pct(df[loc_col].value_counts().iloc[0], total)
-        if top_loc_pct > 40:
-            top_loc = df[loc_col].value_counts().index[0]
-            insights.append(dict(
-                type="warning", icon="📍",
-                title="Location Concentration Risk",
-                detail=f"{top_loc_pct:.1f}% of assets are concentrated at '{top_loc}'. A single-point failure could have major operational impact.",
-            ))
+    # --- Location concentration risk (fully safe) ---
+    try:
+        loc_col = COLUMNS["location"]
+        if loc_col in df.columns:
+            loc_vc = df[loc_col].dropna().value_counts()
+            if len(loc_vc) > 0:
+                top_loc_count = int(loc_vc.iat[0])
+                top_loc_name  = str(loc_vc.index[0])
+                top_loc_pct   = pct(top_loc_count, total)
+                if top_loc_pct > 40:
+                    insights.append(dict(
+                        type="warning", icon="📍",
+                        title="Location Concentration Risk",
+                        detail=f"{top_loc_pct:.1f}% of assets are concentrated at '{top_loc_name}'. A single-point failure could have major operational impact.",
+                    ))
+    except Exception:
+        pass
 
-    # --- Manufacturer diversity ---
-    mfr_col = COLUMNS["manufacturer"]
-    if mfr_col in df.columns:
-        top_mfr_pct = pct(df[mfr_col].value_counts().iloc[0], total)
-        top_mfr = df[mfr_col].value_counts().index[0]
-        if top_mfr_pct > 50:
-            insights.append(dict(
-                type="info", icon="🏭",
-                title="Vendor Dependency Risk",
-                detail=f"{top_mfr_pct:.1f}% of assets are from '{top_mfr}'. Consider diversifying vendors to reduce supply chain risk.",
-            ))
+    # --- Manufacturer diversity (fully safe) ---
+    try:
+        mfr_col = COLUMNS["manufacturer"]
+        if mfr_col in df.columns:
+            mfr_vc = df[mfr_col].dropna().value_counts()
+            if len(mfr_vc) > 0:
+                top_mfr_count = int(mfr_vc.iat[0])
+                top_mfr_name  = str(mfr_vc.index[0])
+                top_mfr_pct   = pct(top_mfr_count, total)
+                if top_mfr_pct > 50:
+                    insights.append(dict(
+                        type="info", icon="🏭",
+                        title="Vendor Dependency Risk",
+                        detail=f"{top_mfr_pct:.1f}% of assets are from '{top_mfr_name}'. Consider diversifying vendors to reduce supply chain risk.",
+                    ))
+    except Exception:
+        pass
 
-    # --- Custodian overload ---
-    cust_col = COLUMNS["custodian"]
-    if cust_col in df.columns:
-        cust_load = df[cust_col].value_counts()
-        avg_load  = cust_load.mean()
-        overloaded= (cust_load > avg_load * 2).sum()
-        if overloaded > 0:
-            insights.append(dict(
-                type="warning", icon="👤",
-                title=f"{overloaded} Overloaded Custodian(s)",
-                detail=f"Some custodians manage more than 2× the average asset load ({avg_load:.0f}). Redistribute for better accountability.",
-            ))
+    # --- Custodian overload (fully safe) ---
+    try:
+        cust_col = COLUMNS["custodian"]
+        if cust_col in df.columns:
+            cust_vc = cust_col_data = df[cust_col].dropna().value_counts()
+            if len(cust_vc) > 0:
+                avg_load   = float(cust_vc.mean())
+                overloaded = int((cust_vc > avg_load * 2).sum())
+                if overloaded > 0:
+                    insights.append(dict(
+                        type="warning", icon="👤",
+                        title=f"{overloaded} Overloaded Custodian(s)",
+                        detail=f"Some custodians manage more than 2× the average asset load ({avg_load:.0f}). Redistribute for better accountability.",
+                    ))
+    except Exception:
+        pass
 
-    # --- Aging fleet ---
-    io_col = COLUMNS["installed_on"]
-    if io_col in df.columns:
-        age_df = assets_by_age(df)
-        if not age_df.empty:
-            old_pct = pct((age_df["Age Bucket"] == "7+ yrs").sum(), total)
-            if old_pct > 20:
-                insights.append(dict(
-                    type="danger", icon="⏳",
-                    title="Aging Fleet Risk",
-                    detail=f"{old_pct:.1f}% of assets are 7+ years old. Plan for technology refresh to maintain reliability and security.",
-                ))
+    # --- Aging fleet (fully safe) ---
+    try:
+        io_col = COLUMNS["installed_on"]
+        if io_col in df.columns:
+            age_df = assets_by_age(df)
+            if not age_df.empty and "Age Bucket" in age_df.columns:
+                old_count = int((age_df["Age Bucket"] == "7+ yrs").sum())
+                old_pct   = pct(old_count, total)
+                if old_pct > 20:
+                    insights.append(dict(
+                        type="danger", icon="⏳",
+                        title="Aging Fleet Risk",
+                        detail=f"{old_pct:.1f}% of assets are 7+ years old. Plan for technology refresh to maintain reliability and security.",
+                    ))
+    except Exception:
+        pass
 
     # --- Growth opportunity ---
     insights.append(dict(
