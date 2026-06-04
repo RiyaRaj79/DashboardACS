@@ -194,18 +194,16 @@ def _render_sidebar() -> tuple[str, pd.DataFrame, dict]:
     """
     with st.sidebar:
         # Logo / Title
-        st.markdown(f"""
-        <div style="
-            text-align:center; padding: 16px 0 20px;
-            border-bottom: 1px solid {COLORS['border']}; margin-bottom:16px;
-        ">
-            <div style="font-size:2.2rem;">🏭</div>
-            <div style="color:{COLORS['text_primary']};font-size:1rem;font-weight:800;
-                        letter-spacing:0.02em;">Tata Steel</div>
-            <div style="color:{COLORS['accent']};font-size:0.72rem;font-weight:600;
-                        letter-spacing:0.12em;text-transform:uppercase;">IT Asset Dashboard</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"<p style='text-align:center;padding:16px 0 6px;font-size:2.2rem;margin:0;'>🏭</p>"
+            f"<p style='text-align:center;color:{COLORS['text_primary']};font-size:1rem;"
+            f"font-weight:800;letter-spacing:0.02em;margin:0;'>Tata Steel</p>"
+            f"<p style='text-align:center;color:{COLORS['accent']};font-size:0.72rem;"
+            f"font-weight:600;letter-spacing:0.12em;text-transform:uppercase;"
+            f"margin:0 0 16px 0;border-bottom:1px solid {COLORS['border']};"
+            f"padding-bottom:16px;'>IT Asset Dashboard</p>",
+            unsafe_allow_html=True,
+        )
 
         # ── Data Source ────────────────────────────────────────────────────
         st.markdown(
@@ -272,11 +270,15 @@ def _render_sidebar() -> tuple[str, pd.DataFrame, dict]:
             total       = len(df)
             color = COLORS["success"] if n_filtered == total else COLORS["warning"]
             st.markdown(
-                f"<div style='text-align:center;background:{COLORS['bg_card2']};"
-                f"border:1px solid {color};border-radius:8px;padding:8px;margin-top:10px;'>"
-                f"<span style='color:{color};font-weight:700;font-size:1rem;'>{n_filtered:,}</span>"
+                f"<p style='text-align:center;"
+                f"background:{COLORS['bg_card2']};"
+                f"border:1px solid {color};"
+                f"border-radius:8px;"
+                f"padding:8px;"
+                f"margin-top:10px;'>"
+                f"<strong style='color:{color};font-size:1rem;'>{n_filtered:,}</strong>"
                 f"<span style='color:{COLORS['text_secondary']};font-size:0.78rem;'> / {total:,} assets</span>"
-                f"</div>",
+                f"</p>",
                 unsafe_allow_html=True,
             )
 
@@ -382,12 +384,17 @@ def page_executive_summary(df: pd.DataFrame, kpis: dict):
         ]
         for label, val in zip(labels, vals):
             st.markdown(
-                f"<div style='display:flex;justify-content:space-between;"
-                f"padding:8px 12px;background:{COLORS['bg_card2']};"
-                f"border-radius:8px;margin-bottom:6px;border:1px solid {COLORS['border']};'>"
-                f"<span style='color:{COLORS['text_secondary']};font-size:0.85rem;'>{label}</span>"
-                f"<span style='color:{COLORS['accent']};font-weight:700;font-size:0.9rem;'>{val}</span>"
-                f"</div>",
+                f"<p style=\""
+                f"display:flex;"
+                f"justify-content:space-between;"
+                f"align-items:center;"
+                f"padding:8px 12px;"
+                f"background:{COLORS['bg_card2']};"
+                f"border-radius:8px;"
+                f"margin-bottom:6px;"
+                f"border:1px solid {COLORS['border']};\""
+                f"><span style='color:{COLORS['text_secondary']};font-size:0.85rem;'>{label}</span>"
+                f"<strong style='color:{COLORS['accent']};font-size:0.9rem;'>{val}</strong></p>",
                 unsafe_allow_html=True,
             )
 
@@ -398,17 +405,23 @@ def page_executive_summary(df: pd.DataFrame, kpis: dict):
     c_info, c_trend = st.columns([0.4, 1.6])
     with c_info:
         if kpis.get("install_start"):
-            st.markdown(f"""
-            <div style='background:{COLORS['bg_card']};border:1px solid {COLORS['border']};
-                        border-radius:10px;padding:14px 16px;'>
-                <div style='color:{COLORS['text_secondary']};font-size:0.78rem;font-weight:600;
-                            text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;'>📅 Date Range</div>
-                <div style='color:{COLORS['text_primary']};font-size:0.9rem;margin-bottom:6px;'>
-                    <b>First Install:</b><br>{ut.fmt_date(kpis['install_start'])}</div>
-                <div style='color:{COLORS['text_primary']};font-size:0.9rem;'>
-                    <b>Latest Install:</b><br>{ut.fmt_date(kpis['install_end'])}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(
+                f"<p style=\""
+                f"background:{COLORS['bg_card']};"
+                f"border:1px solid {COLORS['border']};"
+                f"border-radius:10px;"
+                f"padding:14px 16px;\""
+                f"><strong style='color:{COLORS['text_secondary']};font-size:0.78rem;"
+                f"text-transform:uppercase;letter-spacing:0.06em;'>📅 Date Range</strong>"
+                f"<br><br>"
+                f"<span style='color:{COLORS['text_primary']};font-size:0.9rem;'>"
+                f"<b>First Install:</b><br>{ut.fmt_date(kpis['install_start'])}</span>"
+                f"<br><br>"
+                f"<span style='color:{COLORS['text_primary']};font-size:0.9rem;'>"
+                f"<b>Latest Install:</b><br>{ut.fmt_date(kpis['install_end'])}</span>"
+                f"</p>",
+                unsafe_allow_html=True,
+            )
 
     with c_trend:
         yearly = an.yearly_installation_trend(df)

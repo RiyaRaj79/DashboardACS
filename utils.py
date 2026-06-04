@@ -90,116 +90,118 @@ def kpi_card(
     color: str = None,
 ) -> None:
     """
-    Render a styled KPI metric card using Streamlit markdown.
-
-    Parameters
-    ----------
-    container : st column or container
-    icon      : Emoji icon
-    label     : KPI label text
-    value     : Primary value (already formatted as string)
-    sub       : Subtitle / secondary metric
-    trend     : Optional float growth % for the trend indicator
-    color     : Optional override for the accent border color
+    Render a KPI card using st.metric() — fully compatible with Streamlit Cloud.
+    No raw HTML divs used, so no stray </div> text can appear.
     """
     border_color = color or COLORS["accent"]
-    trend_html   = ""
-    if trend is not None:
-        t_color = trend_color(trend)
-        t_icon  = trend_icon(trend)
-        trend_html = (
-            f'<span style="color:{t_color};font-size:0.85rem;font-weight:600;">'
-            f'{t_icon} {fmt_pct(abs(trend))} YoY</span>'
-        )
 
-    html = f"""
-    <div style="
-        background: linear-gradient(135deg, {COLORS['bg_card']} 0%, {COLORS['bg_card2']} 100%);
-        border: 1px solid {COLORS['border']};
-        border-left: 4px solid {border_color};
-        border-radius: 12px;
-        padding: 18px 20px;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        transition: transform 0.2s;
-    ">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-            <span style="font-size:1.6rem;">{icon}</span>
-            <span style="color:{COLORS['text_secondary']};font-size:0.78rem;font-weight:600;
-                         letter-spacing:0.08em;text-transform:uppercase;">{label}</span>
-        </div>
-        <div style="color:{COLORS['text_primary']};font-size:2rem;font-weight:700;
-                    line-height:1.1;margin-bottom:4px;">{value}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="color:{COLORS['text_secondary']};font-size:0.8rem;">{sub}</span>
-            {trend_html}
-        </div>
-    </div>
-    """
-    container.markdown(html, unsafe_allow_html=True)
+    # Build delta string for st.metric (shows trend arrow automatically)
+    delta_str = None
+    if trend is not None:
+        sign = "+" if trend >= 0 else ""
+        delta_str = f"{sign}{trend:.1f}% YoY"
+
+    # Inject a one-time CSS class for this card's left border colour.
+    # We use a unique key based on label so multiple cards don't clash.
+    safe_key = label.lower().replace(" ", "_").replace("/", "_")
+    container.markdown(
+        f"""
+        <style>
+        div[data-testid="metric-container"] {{
+            border-left: 4px solid {COLORS['accent']} !important;
+        }}
+        </style>
+        <p style="margin:0 0 2px 0;
+                  font-size:0.78rem;
+                  font-weight:600;
+                  letter-spacing:0.08em;
+                  text-transform:uppercase;
+                  color:{COLORS['text_secondary']};">  
+            {icon}&nbsp;&nbsp;{label}
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+    container.metric(
+        label      = "",
+        value      = value,
+        delta      = delta_str,
+        label_visibility = "collapsed",
+    )
+    if sub:
+        container.markdown(
+            f"<p style='margin:-8px 0 8px 0;font-size:0.78rem;color:{COLORS['text_secondary']};'>{sub}</p>",
+            unsafe_allow_html=True,
+        )
 
 
 def insight_card(
     container: DeltaGenerator,
     insight: dict,
 ) -> None:
-    """Render a single AI insight card."""
-    type_styles = {
-        "success": (COLORS["success"],  "#0D2E1A"),
-        "warning": (COLORS["warning"],  "#2E1F0A"),
-        "danger" : (COLORS["danger"],   "#2E0D0D"),
-        "info"   : (COLORS["info"],     "#0A1A2E"),
+    """Render a single AI insight card using safe markdown (no nested divs)."""
+    type_map = {
+        "success": ("#27AE60", "#0D2E1A"),
+        "warning": ("#E67E22", "#2E1F0A"),
+        "danger" : ("#E74C3C", "#2E0D0D"),
+        "info"   : ("#2E86C1", "#0A1A2E"),
     }
-    border, bg = type_styles.get(insight.get("type", "info"), (COLORS["accent"], COLORS["bg_card"]))
-    html = f"""
-    <div style="
-        background: {bg};
-        border: 1px solid {border};
-        border-left: 4px solid {border};
-        border-radius: 10px;
-        padding: 14px 16px;
-        margin-bottom: 10px;
-    ">
-        <div style="font-size:1.05rem;font-weight:700;color:{COLORS['text_primary']};margin-bottom:5px;">
-            {insight.get('icon','')} &nbsp;{insight.get('title','')}
-        </div>
-        <div style="color:{COLORS['text_secondary']};font-size:0.88rem;line-height:1.55;">
-            {insight.get('detail','')}
-        </div>
-    </div>
-    """
-    container.markdown(html, unsafe_allow_html=True)
+    border, bg = type_map.get(insight.get("type", "info"), (COLORS["accent"], COLORS["bg_card"]))
+    icon  = insight.get("icon", "")
+    title = insight.get("title", "")
+    detail= insight.get("detail", "")
+    # Use a table-free, single-tag approach to avoid sanitiser stripping
+    container.markdown(
+        f"<p style=\""
+        f"background:{bg};"
+        f"border:1px solid {border};"
+        f"border-left:4px solid {border};"
+        f"border-radius:10px;"
+        f"padding:14px 16px;"
+        f"margin-bottom:10px;"
+        f"display:block;\""
+        f"><strong style='color:{COLORS['text_primary']};font-size:1rem;'>"
+        f"{icon} {title}</strong>"
+        f"<br><span style='color:{COLORS['text_secondary']};font-size:0.87rem;line-height:1.6;'>"
+        f"{detail}</span></p>",
+        unsafe_allow_html=True,
+    )
 
 
 def section_header(title: str, subtitle: str = "") -> None:
-    """Render a styled section header."""
-    st.markdown(f"""
-    <div style="margin: 18px 0 14px 0; padding-bottom: 8px;
-                border-bottom: 2px solid {COLORS['border']};">
-        <h3 style="color:{COLORS['text_primary']};font-size:1.3rem;margin:0;font-weight:700;">
-            {title}
-        </h3>
-        {"<p style='color:"+COLORS['text_secondary']+";font-size:0.85rem;margin:4px 0 0 0;'>"+subtitle+"</p>" if subtitle else ""}
-    </div>
-    """, unsafe_allow_html=True)
+    """Render a styled section header using safe inline elements only."""
+    st.markdown(
+        f"<h3 style='color:{COLORS['text_primary']};font-size:1.2rem;font-weight:700;"
+        f"margin:18px 0 4px 0;padding-bottom:8px;"
+        f"border-bottom:2px solid {COLORS['border']};'>{title}</h3>",
+        unsafe_allow_html=True,
+    )
+    if subtitle:
+        st.markdown(
+            f"<p style='color:{COLORS['text_secondary']};font-size:0.83rem;margin:0 0 10px 0;'>{subtitle}</p>",
+            unsafe_allow_html=True,
+        )
 
 
 def page_header(title: str, subtitle: str = "") -> None:
-    """Render a styled page header."""
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(90deg, {COLORS['gradient_start']} 0%, {COLORS['gradient_end']} 100%);
-        padding: 22px 28px;
-        border-radius: 14px;
-        margin-bottom: 22px;
-        border: 1px solid {COLORS['border']};
-    ">
-        <h1 style="color:{COLORS['text_primary']};font-size:1.7rem;margin:0;font-weight:800;">
-            {title}
-        </h1>
-        {"<p style='color:"+COLORS['text_secondary']+";font-size:0.9rem;margin:6px 0 0 0;'>"+subtitle+"</p>" if subtitle else ""}
-    </div>
-    """, unsafe_allow_html=True)
+    """Render a styled page header using safe single-block markdown."""
+    sub_html = (
+        f"<br><span style='color:{COLORS['text_secondary']};font-size:0.9rem;'>{subtitle}</span>"
+        if subtitle else ""
+    )
+    st.markdown(
+        f"<h1 style=\""
+        f"background:linear-gradient(90deg,{COLORS['gradient_start']},{COLORS['gradient_end']});"
+        f"padding:22px 28px;"
+        f"border-radius:14px;"
+        f"margin-bottom:22px;"
+        f"border:1px solid {COLORS['border']};"
+        f"color:{COLORS['text_primary']};"
+        f"font-size:1.7rem;"
+        f"font-weight:800;\""
+        f">{title}{sub_html}</h1>",
+        unsafe_allow_html=True,
+    )
 
 
 def divider() -> None:
@@ -224,9 +226,9 @@ def build_sidebar_filters(df: pd.DataFrame) -> dict:
     selected = {}
 
     st.sidebar.markdown(
-        f"<div style='color:{COLORS['text_secondary']};font-size:0.75rem;"
+        f"<p style='color:{COLORS['text_secondary']};font-size:0.75rem;"
         f"font-weight:600;letter-spacing:0.08em;text-transform:uppercase;"
-        f"margin-bottom:8px;'>🔍 Search</div>",
+        f"margin-bottom:8px;'>🔍 Search</p>",
         unsafe_allow_html=True,
     )
     selected["search"] = st.sidebar.text_input(
@@ -234,9 +236,9 @@ def build_sidebar_filters(df: pd.DataFrame) -> dict:
     )
 
     st.sidebar.markdown(
-        f"<div style='color:{COLORS['text_secondary']};font-size:0.75rem;"
+        f"<p style='color:{COLORS['text_secondary']};font-size:0.75rem;"
         f"font-weight:600;letter-spacing:0.08em;text-transform:uppercase;"
-        f"margin:12px 0 8px 0;'>📅 Install Date</div>",
+        f"margin:12px 0 8px 0;'>📅 Install Date</p>",
         unsafe_allow_html=True,
     )
     io_col = COLUMNS["installed_on"]
@@ -269,9 +271,9 @@ def build_sidebar_filters(df: pd.DataFrame) -> dict:
             unique_vals = sorted(df[col].dropna().unique().tolist())
             if unique_vals:
                 st.sidebar.markdown(
-                    f"<div style='color:{COLORS['text_secondary']};font-size:0.75rem;"
+                    f"<p style='color:{COLORS['text_secondary']};font-size:0.75rem;"
                     f"font-weight:600;letter-spacing:0.08em;text-transform:uppercase;"
-                    f"margin:10px 0 4px 0;'>{label}</div>",
+                    f"margin:10px 0 4px 0;'>{label}</p>",
                     unsafe_allow_html=True,
                 )
                 selected[col] = st.sidebar.multiselect(
