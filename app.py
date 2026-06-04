@@ -496,16 +496,30 @@ def page_asset_analytics(df: pd.DataFrame):
 def page_location_analytics(df: pd.DataFrame):
     ut.page_header("📍 Location Analytics", "Geographic distribution of IT assets across sites")
 
-    # KPI row
-    loc_bd = an.breakdown_by(df, COLUMNS["location"])
-    c1, c2, c3 = st.columns(3)
-    ut.kpi_card(c1, "📍", "Unique Locations", ut.fmt_number(df[COLUMNS["location"]].nunique() if COLUMNS["location"] in df.columns else 0), "")
-    top_loc = loc_bd.iloc[0] if not loc_bd.empty else None
-    ut.kpi_card(c2, "🥇", "Top Location", str(top_loc[COLUMNS["location"]]) if top_loc is not None else "N/A",
-                f"{top_loc['Count']} assets" if top_loc is not None else "")
-    ut.kpi_card(c3, "🌐", "Unique Regions", ut.fmt_number(df[COLUMNS["region"]].nunique() if COLUMNS["region"] in df.columns else 0), "")
+    # Guard: show a helpful message if Location column is missing
+    loc_col = COLUMNS["location"]
+    if loc_col not in df.columns:
+        st.warning(
+            f"⚠️ **'{loc_col}' column not found in your data.**  \n"
+            f"Detected columns: `{', '.join(df.columns.tolist())}`  \n"
+            f"Make sure your Excel file has a column named **Location** (or Site / Plant / Building)."
+        )
+        return
 
-    ut.divider()
+    # KPI row
+    loc_bd = an.breakdown_by(df, loc_col)
+    c1, c2, c3 = st.columns(3)
+    ut.kpi_card(c1, "📍", "Unique Locations",
+                ut.fmt_number(df[loc_col].nunique()), "")
+    top_loc = loc_bd.iloc[0] if not loc_bd.empty else None
+    ut.kpi_card(c2, "🥇", "Top Location",
+                str(top_loc[loc_col]) if top_loc is not None else "N/A",
+                f"{top_loc['Count']} assets" if top_loc is not None else "")
+    reg_col = COLUMNS["region"]
+    ut.kpi_card(c3, "🌐", "Unique Regions",
+                ut.fmt_number(df[reg_col].nunique() if reg_col in df.columns else 0), "")
+
+
 
     tab1, tab2, tab3, tab4 = st.tabs(["Location Bar", "Region Donut", "Heatmap", "Sunburst"])
 

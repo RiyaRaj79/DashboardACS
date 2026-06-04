@@ -151,43 +151,121 @@ def _normalise(df: pd.DataFrame) -> pd.DataFrame:
     """
     Clean, cast, and standardise columns so the rest of the app
     can rely on consistent dtypes and names.
+
+    Key step: auto-map column names from any real Excel file to the
+    canonical names expected by config.COLUMNS using case-insensitive
+    alias matching. Handles 'location', 'LOCATION', 'Site', 'Plant', etc.
     """
     if df.empty:
         return df
 
     df = df.copy()
 
-    # Strip leading / trailing whitespace from string columns
-    str_cols = df.select_dtypes(include="object").columns
-    df[str_cols] = df[str_cols].apply(lambda s: s.str.strip() if s.dtype == "O" else s)
-
-    # Normalise column names: strip & replace spaces with original names
+    # Step 1: Strip whitespace from column names
     df.columns = [str(c).strip() for c in df.columns]
 
-    # Attempt to parse 'Installed On' (or similar) as datetime
-    date_candidates = [
-        c for c in df.columns
-        if any(kw in c.lower() for kw in ("date", "install", "created", "updated", "on"))
-    ]
-    for col in date_candidates:
+    # Step 2: Smart case-insensitive column auto-mapping
+    # canonical name -> list of acceptable lowercase aliases
+    COLUMN_ALIASES = {
+        "Asset ID"       : ["asset id", "assetid", "asset_id", "id", "tag",
+                            "asset tag", "asset no", "asset number", "ci id"],
+        "Name"           : ["name", "asset name", "item name", "description",
+                            "title", "ci name", "hostname", "device name"],
+        "Class"          : ["class", "asset class", "category", "asset type",
+                            "asset category", "class name"],
+        "Location"       : ["location", "site", "plant", "facility", "office",
+                            "location name", "site name", "place", "building"],
+        "Sublocation"    : ["sublocation", "sub location", "sub-location", "floor",
+                            "room", "area", "zone", "subloc"],
+        "Region"         : ["region", "zone", "geography", "geo", "territory",
+                            "region name"],
+        "Custodian"      : ["custodian", "owner", "user", "assigned to",
+                            "assignee", "responsible", "custodian name",
+                            "asset owner", "emp id", "employee", "managed by"],
+        "Team"           : ["team", "team name", "group", "it team"],
+        "Support Group"  : ["support group", "support team", "support",
+                            "helpdesk", "resolver group"],
+        "Department"     : ["department", "dept", "business unit", "division",
+                            "department name", "cost centre", "cost center"],
+        "CI Type"        : ["ci type", "ci_type", "configuration item type",
+                            "item type", "device type", "asset subtype"],
+        "Hardware Status": ["hardware status", "status", "state", "condition",
+                            "asset status", "operational status", "hw status",
+                            "lifecycle", "lifecycle status"],
+        "Manufacturer"   : ["manufacturer", "make", "brand", "vendor", "oem",
+                            "manufacturer name", "mfr"],
+        "Company"        : ["company", "organisation", "organization", "org",
+                            "entity", "company name", "business"],
+        "Installed On"   : ["installed on", "install date", "installation date",
+                            "date installed", "purchase date", "commissioned",
+                            "commission date", "created on", "created date",
+                            "deployment date", "deployed on"],
+        "Asset Criteria" : ["asset criteria", "criteria", "priority", "criticality",
+                            "asset criticality", "importance", "tier",
+                            "classification"],
+    }
+
+    alias_map = {}
+    for canonical, aliases in COLUMN_ALIASES.items():
+        for alias in aliases:
+            alias_map[alias] = canonical
+
+    rename_dict = {}
+    for col in list(df.columns):
+        col_lower = col.lower().strip()
+        if col_lower in alias_map:
+            target = alias_map[col_lower]
+            if target not in df.columns and col != target:
+                rename_dict[col] = target
+
+    if rename_dict:
+        df.rename(columns=rename_dict, inplace=True)
+        logger.info("Auto-mapped columns: %s", rename_dict)
+
+    # Step 3: Strip whitespace from string cell values
+    str_cols = df.select_dtypes(include="object").columns
+    for col in str_cols:
         try:
-            df[col] = pd.to_datetime(df[col], infer_datetime_format=True, errors="coerce")
+            df[col] = df[col].astype(str).str.strip()
+            df[col] = df[col].replace({"nan": np.nan, "None": np.nan, "<NA>": np.nan})
         except Exception:
             pass
 
-    # Derive helper date columns from 'Installed On'
-    if COLUMNS["installed_on"] in df.columns:
-        io_col = COLUMNS["installed_on"]
-        df["_install_year"]    = df[io_col].dt.year
-        df["_install_month"]   = df[io_col].dt.month
-        df["_install_month_name"] = df[io_col].dt.strftime("%b")
-        df["_install_quarter"] = df[io_col].dt.to_period("Q").astype(str)
-        df["_install_ym"]      = df[io_col].dt.to_period("M").astype(str)
+    # Step 4: Parse date columns
+    date_candidates = [
+        c for c in df.columns
+        if any(kw in c.lower() for kw in
+               ("date", "install", "created", "updated", "on", "commission"))
+    ]
+    for col in date_candidates:
+        try:
+            parsed = pd.to_datetime(df[col], infer_datetime_format=True, errors="coerce")
+            if parsed.notna().mean() > 0.20:   # accept if 20%+ rows parsed OK
+                df[col] = parsed
+        except Exception:
+            pass
 
-    # Replace blank / empty strings with NaN for uniformity
+    # Step 5: Derive helper date columns from 'Installed On'
+    io_col = COLUMNS["installed_on"]
+    if io_col in df.columns and pd.api.types.is_datetime64_any_dtype(df[io_col]):
+        df["_install_year"]       = df[io_col].dt.year
+        df["_install_month"]      = df[io_col].dt.month
+        df["_install_month_name"] = df[io_col].dt.strftime("%b")
+        try:
+            df["_install_quarter"] = df[io_col].dt.to_period("Q").astype(str)
+            df["_install_ym"]      = df[io_col].dt.to_period("M").astype(str)
+        except Exception:
+            df["_install_quarter"] = (
+                df[io_col].dt.year.astype(str) + "-Q"
+                + df[io_col].dt.quarter.astype(str)
+            )
+            df["_install_ym"] = df[io_col].dt.strftime("%Y-%m")
+
+    # Step 6: Replace remaining blank strings with NaN
     df.replace(r"^\s*$", np.nan, regex=True, inplace=True)
 
-    logger.info("Normalised DataFrame: %d rows × %d cols", *df.shape)
+    logger.info("Normalised: %d rows x %d cols | cols: %s",
+                df.shape[0], df.shape[1], list(df.columns))
     return df
 
 
