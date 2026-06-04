@@ -129,7 +129,5 @@ PAGES = [
     "👤 Custodian Analytics",
     "🔧 Hardware Status",
     "📅 Installation Trends",
-    "🔬 Advanced Analytics",
-    "🤖 AI Insights",
     "📤 Export",
 ]

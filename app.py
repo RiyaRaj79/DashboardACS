@@ -701,6 +701,7 @@ def page_installation_trends(df: pd.DataFrame):
         st.warning("'Installed On' column not found in the dataset.")
         return
 
+
     tab1, tab2, tab3, tab4 = st.tabs(["Monthly", "Yearly", "Quarterly", "Asset Age"])
 
     with tab1:
@@ -752,161 +753,7 @@ def page_installation_trends(df: pd.DataFrame):
 
 
 # ===========================================================================
-# PAGE 8 — ADVANCED ANALYTICS
-# ===========================================================================
-
-def page_advanced_analytics(df: pd.DataFrame):
-    ut.page_header("🔬 Advanced Analytics", "Statistical analysis, rankings, and anomaly detection")
-
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Top / Bottom N", "Outlier Detection", "Correlation", "Multi-Dimension"
-    ])
-
-    with tab1:
-        ut.section_header("Top & Bottom N Analysis")
-        n_select = st.slider("Select N", 5, 30, 10, key="n_select")
-        col_select = st.selectbox(
-            "Analyse column",
-            [COLUMNS["location"], COLUMNS["department"], COLUMNS["manufacturer"],
-             COLUMNS["ci_type"], COLUMNS["custodian"], COLUMNS["team"]],
-            key="topn_col",
-        )
-        c1, c2 = st.columns(2)
-        with c1:
-            ut.section_header(f"Top {n_select}")
-            top_df = an.top_n_by(df, col_select, n_select)
-            fig = ch.bar_chart(top_df, col_select, "Count",
-                               f"Top {n_select} by {col_select}",
-                               orientation="h", height=450)
-            st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
-        with c2:
-            ut.section_header(f"Bottom {n_select}")
-            bot_df = an.bottom_n_by(df, col_select, n_select)
-            fig = ch.bar_chart(bot_df, col_select, "Count",
-                               f"Bottom {n_select} by {col_select}",
-                               orientation="h", height=450)
-            st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
-
-    with tab2:
-        ut.section_header("Outlier Detection – Custodian Workload")
-        cust_bd = an.custodian_load(df)
-        if not cust_bd.empty:
-            threshold = st.slider("Z-score threshold", 1.5, 4.0, 2.5, 0.1, key="z_thresh")
-            outliers  = an.detect_outliers_zscore(cust_bd, "Count", threshold)
-            if not outliers.empty:
-                st.warning(f"⚠️ {len(outliers)} outlier custodian(s) detected (|z| > {threshold})")
-                fig = ch.scatter_chart(
-                    cust_bd.reset_index(drop=True).assign(index=range(len(cust_bd))),
-                    x="index", y="Count",
-                    title="Custodian Asset Count (Outliers = High Values)",
-                    height=420,
-                )
-                st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
-                ut.render_data_table(outliers, "Detected Outliers")
-            else:
-                st.success("✅ No outliers found at this threshold.")
-
-    with tab3:
-        ut.section_header("Correlation Matrix")
-        st.info("Correlation is computed on numerical columns derived from the dataset.")
-        num_df = df.select_dtypes(include=[np.number])
-        if num_df.shape[1] >= 2:
-            corr = an.correlation_matrix(df)
-            if not corr.empty:
-                fig = ch.correlation_heatmap(corr, "Numerical Feature Correlation", height=420)
-                st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
-        else:
-            # Encode key categoricals and compute correlation
-            encode_cols = [COLUMNS["location"], COLUMNS["department"],
-                           COLUMNS["ci_type"], COLUMNS["hw_status"]]
-            enc_df = df[[c for c in encode_cols if c in df.columns]].copy()
-            for c in enc_df.columns:
-                enc_df[c], _ = pd.factorize(enc_df[c])
-            if "_install_year" in df.columns:
-                enc_df["Install Year"] = df["_install_year"]
-            corr = enc_df.corr().round(3)
-            fig = ch.correlation_heatmap(corr, "Encoded Column Correlation Matrix", height=420)
-            st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
-
-    with tab4:
-        ut.section_header("Multi-Dimensional Analysis")
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            grp1 = st.selectbox("Group By (Rows)",
-                [COLUMNS["location"], COLUMNS["department"], COLUMNS["region"]], key="md1")
-            grp2 = st.selectbox("Group By (Columns)",
-                [COLUMNS["hw_status"], COLUMNS["ci_type"], COLUMNS["asset_class"]], key="md2")
-        with c2:
-            pivot = an.multi_breakdown(df, grp1, grp2)
-            if not pivot.empty:
-                fig = ch.heatmap(pivot, f"{grp1} × {grp2} Asset Heatmap", height=480)
-                st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
-
-
-# ===========================================================================
-# PAGE 9 — AI INSIGHTS
-# ===========================================================================
-
-def page_ai_insights(df: pd.DataFrame, kpis: dict, insights: list):
-    ut.page_header("🤖 AI Insights", "Automated intelligence & recommendations for asset management")
-
-    if not insights:
-        st.info("No insights generated – load data first.")
-        return
-
-    # Categorise insights
-    by_type = {"success": [], "warning": [], "danger": [], "info": []}
-    for ins in insights:
-        by_type.setdefault(ins.get("type", "info"), []).append(ins)
-
-    # Summary badges
-    c1, c2, c3, c4 = st.columns(4)
-    ut.kpi_card(c1, "✅", "Positive Findings", str(len(by_type["success"])), "", color=COLORS["success"])
-    ut.kpi_card(c2, "⚠️", "Warnings",          str(len(by_type["warning"])), "", color=COLORS["warning"])
-    ut.kpi_card(c3, "🚨", "Critical Alerts",   str(len(by_type["danger"])),  "", color=COLORS["danger"])
-    ut.kpi_card(c4, "💡", "Informational",     str(len(by_type["info"])),    "", color=COLORS["info"])
-
-    ut.divider()
-
-    # Display by priority
-    for t in ["danger", "warning", "success", "info"]:
-        for ins in by_type[t]:
-            ut.insight_card(st, ins)
-
-    ut.divider()
-    ut.section_header("📋 Summary Report")
-    st.markdown(f"""
-    <div style='background:{COLORS['bg_card2']};border:1px solid {COLORS['border']};
-                border-radius:12px;padding:20px 24px;'>
-        <div style='color:{COLORS['text_primary']};font-size:0.95rem;line-height:1.8;'>
-            <b style='color:{COLORS['accent']};'>Fleet Overview:</b>
-            The IT asset fleet comprises <b>{kpis.get('total_assets',0):,}</b> assets across
-            <b>{kpis.get('n_locations',0)}</b> locations with
-            <b>{kpis.get('n_departments',0)}</b> departments involved.
-            <br><br>
-            <b style='color:{COLORS['accent']};'>Operational Health:</b>
-            <b>{kpis.get('active_pct',0):.1f}%</b> of assets are active.
-            <b>{kpis.get('maint_count',0)}</b> are in maintenance and
-            <b>{kpis.get('retired_count',0)}</b> have been retired or decommissioned.
-            <br><br>
-            <b style='color:{COLORS['accent']};'>Growth Trajectory:</b>
-            YoY asset addition change stands at
-            <b>{kpis.get('yoy_growth',0):+.1f}%</b>.
-            <b>{kpis.get('assets_this_year',0)}</b> new assets were added in the current year.
-            <br><br>
-            <b style='color:{COLORS['accent']};'>Recommended Actions:</b><br>
-            1. Review and reassign assets from overloaded custodians.<br>
-            2. Prioritise refresh for assets older than 7 years.<br>
-            3. Establish redundancy plans for the top concentration location.<br>
-            4. Investigate maintenance queue SLA compliance.<br>
-            5. Expand asset coverage in under-served departments.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ===========================================================================
-# PAGE 10 — EXPORT
+# PAGE 8 — EXPORT
 # ===========================================================================
 
 def page_export(df: pd.DataFrame, filtered_df: pd.DataFrame):
@@ -975,9 +822,8 @@ def main():
     # Apply global filters
     filtered_df = ut.apply_filters(raw_df, filters) if not raw_df.empty else raw_df
 
-    # Pre-compute KPIs and insights (cached via analytics layer)
-    kpis     = an.compute_kpis(filtered_df) if not filtered_df.empty else {}
-    insights = an.generate_insights(filtered_df, kpis) if not filtered_df.empty else []
+    # Pre-compute KPIs (cached via analytics layer)
+    kpis = an.compute_kpis(filtered_df) if not filtered_df.empty else {}
 
     # ── Route to selected page ────────────────────────────────────────────
     if page == PAGES[0]:
@@ -995,10 +841,6 @@ def main():
     elif page == PAGES[6]:
         page_installation_trends(filtered_df)
     elif page == PAGES[7]:
-        page_advanced_analytics(filtered_df)
-    elif page == PAGES[8]:
-        page_ai_insights(filtered_df, kpis, insights)
-    elif page == PAGES[9]:
         page_export(raw_df, filtered_df)
 
 
