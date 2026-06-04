@@ -213,13 +213,23 @@ def _render_sidebar() -> tuple[str, pd.DataFrame, dict]:
             unsafe_allow_html=True,
         )
         source = st.radio(
-            "", ["Upload File", "Use Demo Data"],
-            index=1, horizontal=False, label_visibility="collapsed"
+            "", ["Live Data", "Upload File", "Use Demo Data"],
+            index=0, horizontal=False, label_visibility="collapsed"
         )
 
         df = pd.DataFrame()
 
-        if source == "Upload File":
+        if source == "Live Data":
+            if os.path.exists(DEFAULT_EXCEL_PATH):
+                with st.spinner("Loading live data…"):
+                    df = db.load_excel(DEFAULT_EXCEL_PATH)
+                if not df.empty:
+                    st.success(f"✅ Loaded {len(df):,} records")
+                else:
+                    st.error("⚠️ Failed to load live data.")
+            else:
+                st.warning("Live data file not found on server.")
+        elif source == "Upload File":
             uploaded = st.file_uploader(
                 "Drop your Excel or CSV file",
                 type=["xlsx", "xls", "csv"],
