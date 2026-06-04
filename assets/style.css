@@ -1,0 +1,41 @@
+/* =============================================================================
+   assets/style.css  –  Supplementary CSS for Tata Steel Dashboard
+   (Loaded automatically if referenced via st.markdown)
+   ============================================================================= */
+
+/* Custom scrollbar */
+::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar-track   { background: #0D1117; }
+::-webkit-scrollbar-thumb   { background: #30363D; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #00B4D8; }
+
+/* Animated gradient header */
+.gradient-header {
+    background: linear-gradient(135deg, #1A3A5C, #0D1B2E, #1A3A5C);
+    background-size: 200% 200%;
+    animation: gradientShift 6s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%   { background-position: 0%   50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0%   50%; }
+}
+
+/* Card hover lift effect */
+.kpi-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 180, 216, 0.2);
+}
+
+/* Pulse animation for critical alerts */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+}
+.critical-pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
