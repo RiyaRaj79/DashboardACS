@@ -621,12 +621,13 @@ def page_custodian_analytics(df: pd.DataFrame):
 
     ut.divider()
 
-    tab1, tab2 = st.tabs(["Top 20 Custodians", "Workload Histogram"])
+    tab1, tab2 = st.tabs(["All Custodians", "Workload Histogram"])
 
     with tab1:
-        top20 = cust_bd.head(20)
-        fig = ch.bar_chart(top20, cust_col, "Count",
-                           "Top 20 Custodians by Asset Count", orientation="h", height=500)
+        # Dynamic height to accommodate all custodians (approx 25px per row)
+        chart_height = max(500, len(cust_bd) * 25)
+        fig = ch.bar_chart(cust_bd, cust_col, "Count",
+                           "Custodians by Asset Count", orientation="h", height=chart_height)
         st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
 
     with tab2:
@@ -635,7 +636,7 @@ def page_custodian_analytics(df: pd.DataFrame):
                            "Distribution of Assets per Custodian", nbins=15, height=420)
         st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
 
-    ut.render_data_table(cust_bd.head(50), "Custodian Workload Table (Top 50)")
+    ut.render_data_table(cust_bd, "Custodian Workload Table (All Custodians)")
 
 
 # ===========================================================================
