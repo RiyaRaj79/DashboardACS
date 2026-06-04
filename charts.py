@@ -70,11 +70,15 @@ def bar_chart(
 
     data = df.copy()
     if top_n:
-        data = data.nlargest(top_n, y) if orientation == "v" else data.nlargest(top_n, x)
+        # Always sort by the numeric value column (y), never by the text label column (x)
+        try:
+            data = data.nlargest(top_n, y)
+        except Exception:
+            data = data.head(top_n)
 
     if orientation == "h":
         # Horizontal: flip so biggest is on top
-        data = data.sort_values(x, ascending=True)
+        data = data.sort_values(y, ascending=True)
 
     bar_color = color or COLORS["accent"]
     n = len(data)
