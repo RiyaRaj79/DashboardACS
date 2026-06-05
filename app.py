@@ -553,8 +553,8 @@ def page_location_analytics(df: pd.DataFrame):
 
     with tab4:
         ut.section_header("Regional Hierarchy – Sunburst Drill-Down")
-        path_cols = [COLUMNS["region"], COLUMNS["location"], COLUMNS["sublocation"]]
-        fig = ch.sunburst_chart(df, path_cols, "Region → Location → Sublocation", height=560)
+        path_cols = [COLUMNS["region"], COLUMNS["location"]]
+        fig = ch.sunburst_chart(df, path_cols, "Region → Location", height=560)
         st.plotly_chart(fig, use_container_width=True, config=ut.chart_config())
 
 
