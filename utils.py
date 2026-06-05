@@ -395,7 +395,26 @@ def render_data_table(
     for col in display_df.select_dtypes(include=["datetime64[ns]", "datetimetz"]).columns:
         display_df[col] = display_df[col].dt.strftime("%d %b %Y")
 
-    section_header(title, f"{len(display_df):,} records")
+    # Calculate and append TOTAL row
+    numeric_cols = display_df.select_dtypes(include=["number"]).columns
+    # Only add total row if there are numeric columns to sum, and there is more than 1 row
+    if len(numeric_cols) > 0 and len(display_df) > 1:
+        total_row = {col: None for col in display_df.columns}
+        
+        # Label the first column as TOTAL
+        first_col = display_df.columns[0]
+        total_row[first_col] = "TOTAL"
+        
+        # Sum numeric columns
+        for col in numeric_cols:
+            total_row[col] = display_df[col].sum()
+            
+        display_df = pd.concat([display_df, pd.DataFrame([total_row])], ignore_index=True)
+        record_count = len(display_df) - 1
+    else:
+        record_count = len(display_df)
+
+    section_header(title, f"{record_count:,} records")
     st.dataframe(
         display_df,
         use_container_width = True,
