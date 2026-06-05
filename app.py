@@ -313,7 +313,8 @@ def page_navigation_hub():
             icon, title = p_name.split(' ', 1)
             st.markdown(
                 f"<div style='background:{COLORS['bg_card']};border:1px solid {COLORS['border']};"
-                f"border-radius:12px;padding:24px;text-align:center;margin-bottom:12px;'>"
+                f"border-radius:12px;padding:24px;text-align:center;margin-bottom:12px;"
+                f"height:160px;display:flex;flex-direction:column;justify-content:center;align-items:center;'>"
                 f"<h1 style='font-size:3rem;margin:0 0 10px 0;'>{icon}</h1>"
                 f"<h4 style='color:{COLORS['text_primary']};margin:0;'>{title}</h4>"
                 f"</div>",
