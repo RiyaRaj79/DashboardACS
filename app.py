@@ -319,9 +319,12 @@ def page_navigation_hub():
                 f"</div>",
                 unsafe_allow_html=True
             )
-            if st.button(f"Go to {title}", key=f"hub_btn_{i}", use_container_width=True):
-                st.session_state.current_page = p_name
-                st.rerun()
+            st.button(
+                f"Go to {title}", 
+                key=f"hub_btn_{i}", 
+                on_click=lambda p=p_name: st.session_state.update(current_page=p), 
+                use_container_width=True
+            )
             st.markdown("<br>", unsafe_allow_html=True)
 
 
