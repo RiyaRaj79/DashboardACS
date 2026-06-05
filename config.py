@@ -122,6 +122,7 @@ CACHE_TTL = 300   # 5 minutes
 # Page Navigation
 # ---------------------------------------------------------------------------
 PAGES = [
+    "🌐 Navigation Hub",
     "🏠 Executive Summary",
     "📦 Asset Analytics",
     "📍 Location Analytics",
