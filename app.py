@@ -682,7 +682,7 @@ def page_custodian_analytics(df: pd.DataFrame):
 
 def page_network_monitoring(df: pd.DataFrame):
     import network as nw
-    ut.page_header("📡 Live Network Status", "Real-time ICMP Ping and SNMP status for infrastructure devices")
+    ut.page_header("📡 Live Network Status", "Real-time ICMP Ping and SNMP status for all devices")
     
     ip_col = COLUMNS.get("ip_address", "IP Address")
     if ip_col not in df.columns:
@@ -698,7 +698,7 @@ def page_network_monitoring(df: pd.DataFrame):
         net_df = nw.generate_network_status(df, ip_col)
 
     if net_df.empty:
-        st.info("No infrastructure devices (Servers, Network, Storage) found with IP addresses to monitor.")
+        st.info("No devices found with IP addresses to monitor.")
         return
 
     total = len(net_df)
