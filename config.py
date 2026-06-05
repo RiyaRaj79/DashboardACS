@@ -94,6 +94,7 @@ COLUMNS = {
     "company"       : "Company",
     "installed_on"  : "Installed On",
     "asset_criteria": "Asset Criteria",
+    "ip_address"    : "IP Address",
 }
 
 # Columns used as categorical filter options
@@ -128,6 +129,7 @@ PAGES = [
     "📍 Location Analytics",
     "🏢 Department Analytics",
     "👤 Custodian Analytics",
+    "📡 Live Network Status",
     "🔧 Hardware Status",
     "📅 Installation Trends",
     "📤 Export",

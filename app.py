@@ -677,7 +677,54 @@ def page_custodian_analytics(df: pd.DataFrame):
 
 
 # ===========================================================================
-# PAGE 6 — HARDWARE STATUS
+# PAGE 6 — LIVE NETWORK STATUS
+# ===========================================================================
+
+def page_network_monitoring(df: pd.DataFrame):
+    import network as nw
+    ut.page_header("📡 Live Network Status", "Real-time ICMP Ping and SNMP status for infrastructure devices")
+    
+    ip_col = COLUMNS.get("ip_address", "IP Address")
+    if ip_col not in df.columns:
+        st.warning("No IP addresses configured for monitoring.")
+        return
+
+    # A button to simulate a refresh
+    if st.button("🔄 Poll Network Now"):
+        st.toast("Polling network devices...", icon="⏳")
+        st.rerun()
+
+    with st.spinner("Polling devices..."):
+        net_df = nw.generate_network_status(df, ip_col)
+
+    if net_df.empty:
+        st.info("No infrastructure devices (Servers, Network, Storage) found with IP addresses to monitor.")
+        return
+
+    total = len(net_df)
+    up = len(net_df[net_df["Status (ICMP)"] == "🟢 UP"])
+    down = total - up
+    avg_lat = net_df["Latency (ms)"].mean()
+
+    c1, c2, c3, c4 = st.columns(4)
+    ut.kpi_card(c1, "📡", "Devices Polled", str(total), "")
+    ut.kpi_card(c2, "🟢", "Devices UP", str(up), "", color=COLORS["success"])
+    ut.kpi_card(c3, "🔴", "Devices DOWN", str(down), "", color=COLORS["danger"])
+    ut.kpi_card(c4, "⏱️", "Avg Latency", f"{avg_lat:.1f} ms" if pd.notna(avg_lat) else "N/A", "", color=COLORS["info"])
+
+    ut.divider()
+    
+    display_cols = ["name", "asset_class", "location", ip_col, "Status (ICMP)", "Latency (ms)", "CPU Load (%)", "Uptime (SNMP)", "Bandwidth (SNMP)"]
+    # map back to friendly names
+    friendly_cols = [COLUMNS.get(c, c) for c in display_cols]
+    
+    # ensure columns exist
+    final_cols = [c for c in friendly_cols if c in net_df.columns]
+    
+    ut.render_data_table(net_df[final_cols], "Live Device Polling Results")
+
+# ===========================================================================
+# PAGE 7 — HARDWARE STATUS
 # ===========================================================================
 
 def page_hardware_status(df: pd.DataFrame):
@@ -877,10 +924,12 @@ def main():
     elif page == PAGES[5]:
         page_custodian_analytics(filtered_df)
     elif page == PAGES[6]:
-        page_hardware_status(filtered_df)
+        page_network_monitoring(filtered_df)
     elif page == PAGES[7]:
-        page_installation_trends(filtered_df)
+        page_hardware_status(filtered_df)
     elif page == PAGES[8]:
+        page_installation_trends(filtered_df)
+    elif page == PAGES[9]:
         page_export(raw_df, filtered_df)
 
 

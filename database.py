@@ -269,6 +269,22 @@ def _normalise(df: pd.DataFrame) -> pd.DataFrame:
     # Step 6: Replace remaining blank strings with NaN
     df.replace(r"^\s*$", np.nan, regex=True, inplace=True)
 
+    # Step 7: Generate mock IP addresses for network monitoring demo
+    import hashlib
+    ip_col = COLUMNS.get("ip_address", "IP Address")
+    if ip_col not in df.columns:
+        infra_classes = ["Server", "Network", "Storage", "Appliance", "Router", "Switch"]
+        class_col = COLUMNS.get("asset_class", "Class")
+        
+        def mock_ip(row):
+            if class_col in row and str(row[class_col]) in infra_classes:
+                asset_id = str(row.get(COLUMNS.get("asset_id", "Asset ID"), "0"))
+                h = int(hashlib.md5(asset_id.encode()).hexdigest(), 16)
+                return f"10.{100 + (h % 50)}.{h % 255}.{(h >> 8) % 254 + 1}"
+            return np.nan
+            
+        df[ip_col] = df.apply(mock_ip, axis=1)
+
     logger.info("Normalised: %d rows x %d cols | cols: %s",
                 df.shape[0], df.shape[1], list(df.columns))
     return df
