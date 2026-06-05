@@ -138,7 +138,8 @@ def stacked_bar(df: pd.DataFrame, title: str = "", height: int = 440) -> go.Figu
             name  = str(col),
             x     = df.index.astype(str),
             y     = df[col],
-            marker_color = CHART_COLORS[i % len(CHART_COLORS)],
+            marker_color  = CHART_COLORS[i % len(CHART_COLORS)],
+            hovertemplate = "%{y}<extra>%{data.name}</extra>",
         ))
     fig.update_layout(barmode="stack")
     return _apply_defaults(fig, title, height)
