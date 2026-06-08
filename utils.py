@@ -385,8 +385,11 @@ def render_data_table(
 
     display_df = df.copy()
 
-    # Drop internal helper columns
+    # Drop internal helper columns and the Percentage column
     internal = [c for c in display_df.columns if str(c).startswith("_")]
+    if "Percentage" in display_df.columns:
+        internal.append("Percentage")
+        
     if hide_cols:
         internal += hide_cols
     display_df.drop(columns=[c for c in internal if c in display_df.columns], inplace=True)
