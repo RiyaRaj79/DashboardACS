@@ -84,6 +84,26 @@ def _inject_css():
         font-size: 0.84rem;
     }}
 
+    /* ─── LOCK SIDEBAR ALWAYS OPEN — hide all collapse/toggle buttons ──── */
+    button[data-testid="stSidebarCollapseButton"],
+    button[data-testid="collapsedControl"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"] {{
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }}
+    /* Force sidebar to always stay expanded */
+    section[data-testid="stSidebar"] {{
+        min-width: 280px !important;
+        max-width: 320px !important;
+        transform: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }}
+
+
     /* ─── Metric Cards (native st.metric) ───────────────────────────────── */
     div[data-testid="metric-container"] {{
         background: {COLORS['bg_card']};
@@ -247,7 +267,10 @@ def _render_sidebar() -> tuple[str, pd.DataFrame, dict]:
             f"🗺️ Navigation</p>",
             unsafe_allow_html=True,
         )
-        page = st.radio("", PAGES, index=0, label_visibility="collapsed")
+        if "current_page" not in st.session_state:
+            st.session_state.current_page = PAGES[0]
+            
+        page = st.radio("", PAGES, key="current_page", label_visibility="collapsed")
 
         ut.divider()
 
@@ -294,7 +317,36 @@ def _render_sidebar() -> tuple[str, pd.DataFrame, dict]:
 
 
 # ===========================================================================
+# PAGE 0 — NAVIGATION HUB
+# ===========================================================================
 
+def page_navigation_hub():
+    ut.page_header("🌐 Navigation Hub", "Central dashboard directory for all analytical modules")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Grid of navigation cards
+    cols = st.columns(3)
+    
+    for i, p_name in enumerate(PAGES[1:]):
+        col = cols[i % 3]
+        with col:
+            icon, title = p_name.split(' ', 1)
+            st.markdown(
+                f"<div style='background:{COLORS['bg_card']};border:1px solid {COLORS['border']};"
+                f"border-radius:12px;padding:24px;text-align:center;margin-bottom:12px;"
+                f"height:160px;display:flex;flex-direction:column;justify-content:center;align-items:center;'>"
+                f"<h1 style='font-size:3rem;margin:0 0 10px 0;'>{icon}</h1>"
+                f"<h4 style='color:{COLORS['text_primary']};margin:0;'>{title}</h4>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+            st.button(
+                f"Go to {title}", 
+                key=f"hub_btn_{i}", 
+                on_click=lambda p=p_name: st.session_state.update(current_page=p), 
+                use_container_width=True
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ===========================================================================
@@ -880,22 +932,24 @@ def main():
 
     # ── Route to selected page ────────────────────────────────────────────
     if page == PAGES[0]:
-        page_executive_summary(filtered_df, kpis)
+        page_navigation_hub()
     elif page == PAGES[1]:
-        page_asset_analytics(filtered_df)
+        page_executive_summary(filtered_df, kpis)
     elif page == PAGES[2]:
-        page_location_analytics(filtered_df)
+        page_asset_analytics(filtered_df)
     elif page == PAGES[3]:
-        page_department_analytics(filtered_df)
+        page_location_analytics(filtered_df)
     elif page == PAGES[4]:
-        page_custodian_analytics(filtered_df)
+        page_department_analytics(filtered_df)
     elif page == PAGES[5]:
-        page_network_monitoring(filtered_df)
+        page_custodian_analytics(filtered_df)
     elif page == PAGES[6]:
-        page_hardware_status(filtered_df)
+        page_network_monitoring(filtered_df)
     elif page == PAGES[7]:
-        page_installation_trends(filtered_df)
+        page_hardware_status(filtered_df)
     elif page == PAGES[8]:
+        page_installation_trends(filtered_df)
+    elif page == PAGES[9]:
         page_export(raw_df, filtered_df)
 
 
